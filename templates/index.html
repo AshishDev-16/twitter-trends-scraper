@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Twitter Trends Scraper</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Roboto', sans-serif;
+        }
+
+        body {
+            background: #15202B;
+            color: #fff;
+            line-height: 1.6;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #1DA1F2;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .button-container {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        button {
+            background: #1DA1F2;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        button:hover {
+            background: #1991db;
+            transform: translateY(-2px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        #results {
+            background: #192734;
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: none;
+        }
+
+        .timestamp {
+            color: #8899A6;
+            font-size: 0.9em;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .trends-list {
+            list-style: none;
+        }
+
+        .trend-item {
+            background: #22303C;
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 10px;
+            transition: transform 0.2s ease;
+            border-left: 4px solid #1DA1F2;
+        }
+
+        .trend-item:hover {
+            transform: translateX(5px);
+            background: #273340;
+        }
+
+        .ip-address {
+            text-align: center;
+            color: #8899A6;
+            margin-top: 15px;
+            font-size: 0.9em;
+        }
+
+        .loading {
+            text-align: center;
+            margin: 20px 0;
+            display: none;
+        }
+
+        .loading::after {
+            content: '';
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #1DA1F2;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .error {
+            background: #FF4B4B;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .mongodb-record {
+            margin-top: 20px;
+            background: #22303C;
+            padding: 15px;
+            border-radius: 10px;
+            font-family: monospace;
+            font-size: 0.9em;
+            overflow-x: auto;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 10px;
+            }
+
+            h1 {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Twitter Trends Scraper</h1>
+        
+        <div class="button-container">
+            <button onclick="runScraper()">Click here to run the script</button>
+        </div>
+
+        <div class="loading" id="loading"></div>
+        <div class="error" id="error"></div>
+        
+        <div id="results">
+            <div class="timestamp" id="timestamp"></div>
+            <h2>These are the most happening topics as on <span id="current-time"></span></h2>
+            <ul class="trends-list" id="trends-list"></ul>
+            <div class="ip-address">The IP address used for this query was <span id="ip-address"></span></div>
+            <div class="mongodb-record">
+                <h3>MongoDB Record:</h3>
+                <pre id="mongodb-record"></pre>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function runScraper() {
+            const loading = document.getElementById('loading');
+            const results = document.getElementById('results');
+            const error = document.getElementById('error');
+            
+            loading.style.display = 'block';
+            results.style.display = 'none';
+            error.style.display = 'none';
+
+            fetch('/run-scraper')
+                .then(response => response.json())
+                .then(data => {
+                    loading.style.display = 'none';
+                    
+                    if (data.success) {
+                        results.style.display = 'block';
+                        document.getElementById('timestamp').textContent = data.timestamp;
+                        document.getElementById('current-time').textContent = data.timestamp;
+                        document.getElementById('ip-address').textContent = data.ip_address;
+                        
+                        const trendsList = document.getElementById('trends-list');
+                        trendsList.innerHTML = '';
+                        data.trends.forEach(trend => {
+                            const li = document.createElement('li');
+                            li.className = 'trend-item';
+                            li.textContent = trend;
+                            trendsList.appendChild(li);
+                        });
+
+                        document.getElementById('mongodb-record').textContent = 
+                            JSON.stringify(data.mongodb_record, null, 2);
+                    } else {
+                        error.style.display = 'block';
+                        error.textContent = data.error || 'An error occurred';
+                    }
+                })
+                .catch(err => {
+                    loading.style.display = 'none';
+                    error.style.display = 'block';
+                    error.textContent = 'Failed to fetch trends: ' + err.message;
+                });
+        }
+    </script>
+</body>
+</html> 
